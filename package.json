@@ -1,0 +1,28 @@
+{
+  "name": "backendnodejs",
+  "version": "1.0.0",
+  "description": "learn backend with nodejs",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsmesaadali/BackendNodejs.git"
+  },
+  "keywords": [
+    "node",
+    "nodejs",
+    "auth"
+  ],
+  "author": "Saad Ali",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/itsmesaadali/BackendNodejs/issues"
+  },
+  "homepage": "https://github.com/itsmesaadali/BackendNodejs#readme",
+  "dependencies": {
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0"
+  }
+}
