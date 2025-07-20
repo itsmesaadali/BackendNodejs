@@ -239,7 +239,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     },
         {
             new: true
-        }.select("-password"))
+        }).select("-password")
 
     return res.status(200).json(new ApiResponse(200, user, "Account details updated successfully"))
 })
@@ -264,7 +264,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     }
         , {
             new: true
-        }.select("-password"))
+        }).select("-password")
 
     return res.status(200).json(200, user, "Avatar image change successfully")
 })
@@ -282,14 +282,14 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Error while uploading on coverImage")
     }
 
-    const user = await User.findByIdAndUpdate(re.user?._id, {
+    const user = await User.findByIdAndUpdate(req.user?._id, {
         $set: {
             coverImage: coverImage.url
         }
     }
         , {
             new: true
-        }.select("-password"))
+        }).select("-password")
 
     return res.status(200).json(200, user, "Cover image change successfully")
 })
