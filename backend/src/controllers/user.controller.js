@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
 
-const generateAccessANdRefreshTokens = async (userId) => {
+const generateAccessAndRefreshTokens = async (userId) => {
     try {
 
         const user = await User.findById(userId)
@@ -23,8 +23,6 @@ const generateAccessANdRefreshTokens = async (userId) => {
         throw new ApiError(500, "Something went wrong while generating refresh and access token")
     }
 }
-
-
 
 const registerUser = asyncHandler(async (req, res) => {
     // get user details from frontend 
@@ -128,13 +126,13 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invlaid user credentials")
     }
 
-    const { accessToken, refreshToken } = await generateAccessANdRefreshTokens(user._id)
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
 
     const options = {
         httpOnly: true,
-        secure: true // in production make it false for check api 
+        secure: false // in production make it false for check api 
     }
 
     return res.status(200).cookie("accessToken", accessToken, options).cookie("refreshToken", refreshToken, options).json(
@@ -148,11 +146,11 @@ const loginUser = asyncHandler(async (req, res) => {
 })
 
 const logoutUser = asyncHandler(async (req, res) => {
-    await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
         req.user._id,
         {
-            $set: {
-                refreshToken: undefined
+            $unset: {
+                refreshToken: 1
             }
         },
         {
@@ -162,10 +160,10 @@ const logoutUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: true // in production make it false for check api 
+        secure: false // in production make it false for check api 
     }
 
-    return res.status(200).clearCookie('accessToken', options).clearCookie('refreshToken', options).json(new ApiResponse(200, {}, "user logout successfully"))
+    return res.status(200).clearCookie('accessToken', options).clearCookie('refreshToken', options).json(new ApiResponse(200, {user: updatedUser}, "user logout successfully"))
 
 })
 
@@ -173,7 +171,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
 
     if (!incomingRefreshToken) {
-        throw new ApiError(401, "unautorized request")
+        throw new ApiError(401, "unauthorized request")
     }
 
     try {
@@ -191,17 +189,22 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
         const options = {
             httpOnly: true,
-            secure: true,
+            secure: false,
         }
 
-        const { accessToken, newRefreshToken } = await generateAccessANdRefreshTokens(user._id)
+        const { accessToken, newRefreshToken } = await generateAccessAndRefreshTokens(user._id)
 
-
-        return res.status(200).cookie('accessToken', accessToken, options).cookie('refreshToken', newRefreshToken, options).json(new ApiResponse(200, { accessToken, refreshToken: newRefreshToken }, "Access token refreshed"))
+        return res
+            .status(200)
+            .cookie('accessToken', accessToken, options)
+            .cookie('refreshToken', newRefreshToken, options)
+            .json(new ApiResponse(200, { 
+                accessToken, 
+                refreshToken: newRefreshToken 
+            }, "Access token refreshed"))
     } catch (error) {
-        throw new ApiError(401, error?.message || " Invalid refresh token")
+        throw new ApiError(401, error?.message || "Invalid refresh token")
     }
-
 })
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
