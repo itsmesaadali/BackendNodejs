@@ -5,6 +5,7 @@ import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import passport from "passport";
 
 
 const generateAccessAndRefreshTokens = async (userId) => {
@@ -50,6 +51,9 @@ const registerUser = asyncHandler(async (req, res) => {
     })
 
     if (existedUser) {
+        if (existedUser.isGoogleAuth) {
+            throw new ApiError(409, "This email is already registered with Google Login")
+        }
         throw new ApiError(409, 'User with email or username already exists')
     }
 
@@ -120,6 +124,10 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "user does not exist")
     }
 
+    if (user.isGoogleAuth) {
+        throw new ApiError(400, "This account is registered with Google. Please use Google Login")
+    }
+
     const isPasswordValid = await user.isPasswordCorrect(password)
 
     if (!isPasswordValid) {
@@ -163,7 +171,7 @@ const logoutUser = asyncHandler(async (req, res) => {
         secure: false // in production make it false for check api 
     }
 
-    return res.status(200).clearCookie('accessToken', options).clearCookie('refreshToken', options).json(new ApiResponse(200, {user: updatedUser}, "user logout successfully"))
+    return res.status(200).clearCookie('accessToken', options).clearCookie('refreshToken', options).json(new ApiResponse(200, { user: updatedUser }, "user logout successfully"))
 
 })
 
@@ -232,6 +240,48 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res.status(200).json(200, req.user, "current user fetch successfully")
 })
+
+const googleAuth = asyncHandler(async (req, res) => {
+    // This will redirect to Google's consent screen
+    passport.authenticate('google', {
+        scope: ['profile', 'email'],
+        session: false
+    })(req, res);
+});
+
+const googleAuthCallback = asyncHandler(async (req, res, next) => {
+    passport.authenticate('google', {
+        session: false
+    }, async (err, user, info) => {
+        if (err) {
+            throw new ApiError(500, err.message);
+        }
+
+        if (!user) {
+            throw new ApiError(400, info?.message || 'Google authentication failed');
+        }
+
+        const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+
+        const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+
+        const options = {
+            httpOnly: true,
+            secure: false
+        };
+
+        return res
+            .status(200)
+            .cookie("accessToken", accessToken, options)
+            .cookie("refreshToken", refreshToken, options)
+            .json(new ApiResponse(200, {
+                user: loggedInUser,
+                accessToken,
+                refreshToken
+            }, "User logged in via Google successfully"));
+    })(req, res, next);
+});
+
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
     const { fullname, email } = req.body
@@ -415,21 +465,21 @@ const getWatchHistory = asyncHandler(async (req, res) => {
                             localField: "owner",
                             foreignField: "_id",
                             as: "owner",
-                            pipeline:[
+                            pipeline: [
                                 {
-                                    $project:{
-                                        fullname:1,
-                                        username:1,
-                                        avatar:1
+                                    $project: {
+                                        fullname: 1,
+                                        username: 1,
+                                        avatar: 1
                                     }
                                 }
                             ]
                         }
                     },
                     {
-                        $addFields:{
-                            owner:{
-                                $first:"$owner"
+                        $addFields: {
+                            owner: {
+                                $first: "$owner"
                             }
                         }
                     }
@@ -444,5 +494,5 @@ const getWatchHistory = asyncHandler(async (req, res) => {
 
 
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile, getWatchHistory }
+export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, googleAuth, googleAuthCallback, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile, getWatchHistory }
 
