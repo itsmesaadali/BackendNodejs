@@ -12,7 +12,6 @@ const userSchema = new mongoose.Schema(
             unique:true,
             lowercase:true,
             trim:true,
-            index:true
         },
         email:{
             type:String,
@@ -25,7 +24,6 @@ const userSchema = new mongoose.Schema(
             type:String,
             required:true,
             trim:true,
-            index:true,
         },
         avatar:{ //cloudnary url
             type:String,

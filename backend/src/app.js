@@ -29,6 +29,10 @@ app.use(passport.initialize());
 import userRouter from './routes/user.routes.js';
 app.use('/api/v1/users', userRouter);
 
+app.get('/', (req,res) =>{
+  res.send('Hello World')
+})
+
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
