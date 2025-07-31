@@ -2,6 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.models.js";
+import { uploadOnCloudinary, deleteFromCloudinary} from '../utils/cloudinary.js'
 import jwt from "jsonwebtoken";
 
 
@@ -19,97 +20,6 @@ const generateAccessAndRefreshTokens = async (userId) => {
         throw new ApiError(500, "Failed to generate authentication tokens");
     }
 };
-
-
-// const registerUser = asyncHandler(async (req, res) => {
-//     // get user details from frontend 
-//     // validation  - not empty
-//     // check if user already exists : username , email
-//     // check for images, check for avatar
-//     // upload then to cloudinary, avatar
-//     // create user object - create entry in db
-//     // remove password and refresh token filed form response
-//     // check for user creation 
-//     // return res 
-
-
-//     const { fullname, email, username, password } = req.body
-//     // console.log('email => ', email ,"Request Body =>", req.body, "Request File =>", req.files)
-
-//     if (
-//         [fullname, email, username, password].some((filed) => filed?.trim() === "")
-//     ) {
-//         throw new ApiError(400, 'All fields are required')
-//     }
-
-//     const existedUser = await User.findOne({
-//         $or: [{ username }, { email }]
-//     })
-
-//     if (existedUser) {
-//         if (existedUser.isGoogleAuth) {
-//             throw new ApiError(409, "This email is already registered with Google Login")
-//         }
-//         throw new ApiError(409, 'User with email or username already exists')
-//     }
-
-//     // console.log('req.files =>', req.files)
-
-//     const avatarLocalPath = req.files?.avatar[0]?.path;
-//     // const coverImageLocalPath = req.files?.coverImage[0]?.path;
-
-//     let coverImageLocalPath;
-//     if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
-//         coverImageLocalPath = req.files.coverImage[0].path
-//     }
-
-//     if (!avatarLocalPath) {
-//         throw new ApiError(400, 'Avatar file is required')
-//     }
-
-//     const avatar = await uploadOnCloudinary(avatarLocalPath)
-//     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
-
-//     if (!avatar) {
-//         throw new ApiError(400, 'Avatar file is required')
-//     }
-
-//     const user = await User.create({
-//         fullname,
-//         avatar: avatar.url,
-//         coverImage: coverImage?.url || '',
-//         email,
-//         password,
-//         username
-//     })
-
-//        // Generate tokens after registration
-//     const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
-
-//     const createdUser = await User.findById(user._id).select("-password -refreshToken")
-
-//     const options = {
-//         httpOnly: true,
-//         secure: true // in production make it true
-//     }
-
-//     if (!createdUser) {
-//         throw new ApiError(500, "Something went wrong while registering the user")
-//     }
-
-//     return res
-//         .status(201)
-//         .cookie("accessToken", accessToken, options)
-//         .cookie("refreshToken", refreshToken, options)
-//         .json(
-//             new ApiResponse(200, {
-//                 user: createdUser,
-//                 accessToken,
-//                 refreshToken
-//             }, 'User registered and logged in successfully')
-//         )
-
-// })
 
 const registerUser = asyncHandler(async (req, res) => {
     const { fullname, email, username, password } = req.body;
@@ -176,6 +86,7 @@ const registerUser = asyncHandler(async (req, res) => {
     const options = {
         httpOnly: true,
         secure: true,
+        sameSite:'None',
     };
 
     return res
@@ -229,7 +140,8 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: true // in production make it false for check api 
+        secure: true, // in production make it false for check api
+        sameSite: 'None'
     }
 
     return res.status(200).cookie("accessToken", accessToken, options).cookie("refreshToken", refreshToken, options).json(
@@ -257,8 +169,9 @@ const logoutUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: true // in production make it false for check api 
-    }
+        secure: true, // in production make it false for check api 
+        sameSite:'None'
+    }   
 
     return res.status(200).clearCookie('accessToken', options).clearCookie('refreshToken', options).json(new ApiResponse(200, { user: updatedUser }, "user logout successfully"))
 
@@ -287,6 +200,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         const options = {
             httpOnly: true,
             secure: true,
+            sameSite:'None'
         };
 
         const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshTokens(user._id);
@@ -308,12 +222,11 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 });
 
-
-
 const getCurrentUser = asyncHandler(async (req, res) => {
-    return res.status(200).json(200, req.user, "current user fetch successfully")
-})
-
+    return res
+        .status(200)
+        .json(new ApiResponse(200, req.user, "Current user fetched successfully"));
+});
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword } = req.body
