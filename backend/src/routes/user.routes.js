@@ -4,8 +4,6 @@ import {
     getCurrentUser, 
     getUserChannelProfile, 
     getWatchHistory, 
-    googleAuth, 
-    googleAuthCallback, 
     loginUser, 
     logoutUser, 
     refreshAccessToken, 
@@ -34,10 +32,8 @@ router.route('/register').post(
 
 router.route('/login').post(loginUser)
 
-//google login
 
-router.route('/auth/google').get(googleAuth);
-router.route('/auth/google/callback').get(googleAuthCallback);
+
 //secured routes
 
 router.route('/logout').post(verifyJWT, logoutUser)

@@ -1,29 +1,25 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
-import { User } from "../models/user.models.js"
-import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { User } from "../models/user.models.js";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
-import passport from "passport";
 
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
+        const user = await User.findById(userId);
+        const accessToken = user.generateAccessToken();
+        const refreshToken = user.generateRefreshToken();
 
-        const user = await User.findById(userId)
-        const accessToken = user.generateAccessToken()
-        const refreshToken = user.generateRefreshToken()
+        user.refreshToken = refreshToken;
+        await user.save({ validateBeforeSave: false });
 
-        user.refreshToken = refreshToken
-        await user.save({ validateBeforeSave: false })
-
-        return { accessToken, refreshToken }
-
+        return { accessToken, refreshToken };
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while generating refresh and access token")
+        throw new ApiError(500, "Failed to generate authentication tokens");
     }
-}
+};
+
 
 // const registerUser = asyncHandler(async (req, res) => {
 //     // get user details from frontend 
@@ -268,6 +264,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 })
 
+
 const refreshAccessToken = asyncHandler(async (req, res) => {
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
@@ -317,92 +314,6 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     return res.status(200).json(200, req.user, "current user fetch successfully")
 })
 
-const googleAuth = asyncHandler(async (req, res) => {
-    // This will redirect to Google's consent screen
-    passport.authenticate('google', {
-        scope: ['profile', 'email'],
-        session: false
-    })(req, res);
-});
-
-// const googleAuthCallback = asyncHandler(async (req, res, next) => {
-//     passport.authenticate('google', {
-//         session: false
-//     }, async (err, user, info) => {
-//         if (err) {
-//             throw new ApiError(500, err.message);
-//         }
-        
-//         if (!user) {
-//             throw new ApiError(400, info?.message || 'Google authentication failed');
-//         }
-
-//         const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
-
-//         const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
-
-//         const options = {
-//             httpOnly: true,
-//             secure: true
-//         };
-
-//         return res
-//             .status(200)
-//             .cookie("accessToken", accessToken, options)
-//             .cookie("refreshToken", refreshToken, options)
-//             .json(new ApiResponse(200, {
-//                 user: loggedInUser,
-//                 accessToken,
-//                 refreshToken
-//             }, "User logged in via Google successfully"));
-//     })(req, res, next);
-// });
-
-const googleAuthCallback = asyncHandler(async (req, res, next) => {
-  passport.authenticate(
-    "google",
-    { session: false },
-    async (err, user, info) => {
-      if (err) {
-        return res.redirect(
-          "http://localhost:5173/register?error=" + encodeURIComponent(err.message)
-        );
-      }
-
-      if (!user) {
-        return res.redirect(
-          "http://localhost:5173/register?error=" +
-            encodeURIComponent(info?.message || "Google authentication failed")
-        );
-      }
-
-      const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
-        user._id
-      );
-
-      const loggedInUser = await User.findById(user._id).select(
-        "-password -refreshToken"
-      );
-
-      const options = {
-        httpOnly: true,
-        secure: true, // Use secure cookies in production
-        sameSite: "lax",
-      };
-
-      // Redirect to frontend with tokens in query params
-      return res
-        .status(200)
-        .cookie("accessToken", accessToken, options)
-        .cookie("refreshToken", refreshToken, options)
-        .redirect(
-          `http://localhost:5173/profile?accessToken=${accessToken}&refreshToken=${refreshToken}&user=${encodeURIComponent(
-            JSON.stringify(loggedInUser)
-          )}`
-        );
-    }
-  )(req, res, next);
-});
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword } = req.body
@@ -633,5 +544,5 @@ const getWatchHistory = asyncHandler(async (req, res) => {
 
 
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, googleAuth, googleAuthCallback, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile, getWatchHistory }
+export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile, getWatchHistory }
 
