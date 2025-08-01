@@ -38,11 +38,19 @@ const userSchema = new mongoose.Schema(
         }],
         password:{
             type:String,
-            require:true
+            default: ''
         },
         refreshToken:{
             type:String
         },
+        isGoogleAuth:{
+            type:Boolean,
+            required:true
+        },
+        googleId:{
+            type:String,
+            required:true
+        }
     },{timestamps:true}
 )
 

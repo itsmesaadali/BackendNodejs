@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import passport from './auth0/passport.js';
 
 const app = express();
 
@@ -22,6 +23,8 @@ app.use(express.static('public'));
 // 4. Cookie parser (for JWT/refresh tokens)
 app.use(cookieParser());
 
+// 5. initialize passport
+app.use(passport.initialize())
 
 // Routes
 import userRouter from './routes/user.routes.js';

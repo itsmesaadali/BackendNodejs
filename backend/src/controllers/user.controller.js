@@ -4,7 +4,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.models.js";
 import { uploadOnCloudinary, deleteFromCloudinary} from '../utils/cloudinary.js'
 import jwt from "jsonwebtoken";
-
+import passport from 'passport'
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
@@ -20,6 +20,44 @@ const generateAccessAndRefreshTokens = async (userId) => {
         throw new ApiError(500, "Failed to generate authentication tokens");
     }
 };
+
+const googleAuth = asyncHandler(async (req, res) => {
+    // This will redirect to Google's consent screen
+    passport.authenticate('google', {
+        scope: ['profile', 'email'],
+        session: false
+    })(req, res);
+});
+
+const googleAuthCallback = asyncHandler(async (req, res, next) => {
+    passport.authenticate('google', {
+        session: false
+    }, async (err, user, info) => {
+        if (err) {
+            return next(new ApiError(500, err.message));
+        }
+
+        if (!user) {
+            return next(new ApiError(400, info?.message || 'Google authentication failed'));
+        }
+
+        const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'None',
+        };
+
+        res.cookie('accessToken', accessToken, cookieOptions);
+        res.cookie('refreshToken', refreshToken, cookieOptions);
+
+        // Redirect to frontend profile page
+        return res.redirect(`${process.env.FRONTEND_URL}/profile`);
+    })(req, res, next);
+});
+
+
 
 const registerUser = asyncHandler(async (req, res) => {
     const { fullname, email, username, password } = req.body;
@@ -454,8 +492,5 @@ const getWatchHistory = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, user[0].watchHistory, "watchHistory fetched successfully"))
 })
 
-
-
-
-export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile, getWatchHistory }
+export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile, getWatchHistory, googleAuth, googleAuthCallback }
 
