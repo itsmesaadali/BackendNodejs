@@ -6,6 +6,7 @@ import { uploadOnCloudinary, deleteFromCloudinary} from '../utils/cloudinary.js'
 import jwt from "jsonwebtoken";
 import passport from 'passport'
 import fs from 'fs'
+import mongoose from "mongoose";
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
